@@ -1,62 +1,52 @@
-import React, { createContext, useState } from 'react'
+import React, { createContext, useState, useCallback } from 'react';
 
-export const SeachContextProvider = createContext()
-const apiKey = process.env.VITE_API_KEY
-
+export const SearchContextProvider = createContext();
+const apiKey = import.meta.env.VITE_API_KEY;
 
 const SearchContext = ({ children }) => {
     const [searchTerm, setSearchTerm] = useState("");
     const [movies, setMovies] = useState([]);
     const [page, setPage] = useState(1);
+    const [loading, setLoading] = useState(false);
 
-    const fetchMovies = async (newSearch = false) => {
-        if (!searchTerm) return;
-
-        const pageToFetch = newSearch ? 1 : page;
-        const url = `https://www.omdbapi.com/?s=${searchTerm}&apikey=${apiKey}&page=${pageToFetch}`;
+    const fetchMovies = async (isNewSearch = false) => {
+        if (!searchTerm.trim()) return;
+        
+        setLoading(true);
+        const pageToFetch = isNewSearch ? 1 : page;
+        const url = `https://www.omdbapi.com/?s=${searchTerm.trim()}&apikey=${apiKey}&page=${pageToFetch}`;
 
         try {
             const res = await fetch(url);
             const data = await res.json();
 
             if (data.Response === "True") {
-                if (newSearch) {
+                if (isNewSearch) {
                     setMovies(data.Search);
-                    console.log(data.Search);
-                    setPage(2); // next page will be 2
+                    setPage(2);
                 } else {
                     setMovies(prev => [...prev, ...data.Search]);
-                    setPage(prev => prev + 1); // page increment
+                    setPage(prev => prev + 1);
                 }
-            } else {
-                alert("❌ No movies found!");
-                setMovies([]);
+            } else if (isNewSearch) {
+                setMovies([]); // Clear movies if nothing found on new search
             }
         } catch (err) {
             console.error("❌ Error:", err);
+        } finally {
+            setLoading(false);
         }
     };
 
-    const handleSearch = () => {
-        fetchMovies(true); // true for new search
-    };
+    const handleSearch = () => fetchMovies(true);
 
-    const value = {
-        searchTerm,
-        setSearchTerm,
-        movies,
-        handleSearch,
-        fetchMovies,
-        apiKey
-
-    }
     return (
-        <div>
-            <SeachContextProvider.Provider value={value}>
-                {children}
-            </SeachContextProvider.Provider>
-        </div>
-    )
-}
+        <SearchContextProvider.Provider value={{ 
+            searchTerm, setSearchTerm, movies, handleSearch, fetchMovies, loading, apiKey 
+        }}>
+            {children}
+        </SearchContextProvider.Provider>
+    );
+};
 
-export default SearchContext
+export default SearchContext;
